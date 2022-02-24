@@ -1,4 +1,5 @@
-try:
+'''try:
+    from .config import server_list
     from .manager import Manager
 except ImportError as e:
     # This is needed for unit tests to work through pytest.
@@ -8,6 +9,6 @@ except ImportError as e:
         pass
     else:
         raise e
-
 def create_instance(c_instance):
-    return Manager(c_instance)
+    return Manager(c_instance, server_list)
+'''

@@ -1,4 +1,4 @@
-from . import client, server, query_and_await, await_reply, wait_one_tick
+from . import client, server, await_reply, wait_one_tick
 
 def test_clip_add_notes(client, server):
     client.send_message("/live/clip_slot/delete_clip", [0, 0])

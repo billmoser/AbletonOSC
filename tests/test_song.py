@@ -1,3 +1,4 @@
+'''
 from . import client, server, query_and_await, await_reply, wait_one_tick
 
 def test_song_tempo_get(client, server):
@@ -26,3 +27,4 @@ def test_song_beat(client, server):
     assert await_reply(server, "/live/song/beat", lambda _, *params: params[0] == 1, timeout=1.0)
     assert await_reply(server, "/live/song/beat", lambda _, *params: params[0] == 2, timeout=1.0)
     client.send_message("/live/song/stop_playing", [])
+'''

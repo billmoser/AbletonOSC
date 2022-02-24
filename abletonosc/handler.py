@@ -35,24 +35,30 @@ class AbletonOSCHandler(Component):
         return getattr(target, prop),
 
     def _start_listen(self, target, prop, params: Optional[Tuple[Any]] = ()) -> None:
-        def property_changed_callback():
-            value = getattr(target, prop)
-            self.logger.info("Property %s changed: %s" % (prop, value))
-            # TODO
-            osc_address = "/live/set/get/%s" % prop
-            self.osc_server.send(osc_address, (value,))
+        if not self.osc_server.hasListeners(target, prop):
+            def property_changed_callback():
+                value = getattr(target, prop)
+                self.logger.info("Property %s changed: %s" % (prop, value))
+                # TODO
+                osc_address = "/live/set/get/%s" % prop
+                self.osc_server.publish(target, prop, osc_address, (value,))
 
-        add_listener_function_name = "add_%s_listener" % prop
-        add_listener_function = getattr(target, add_listener_function_name)
-        add_listener_function(property_changed_callback)
-        self.listener_functions[prop] = property_changed_callback
+            add_listener_function_name = "add_%s_listener" % prop
+            add_listener_function = getattr(target, add_listener_function_name)
+            add_listener_function(property_changed_callback)
+            self.listener_functions[prop] = property_changed_callback
+
+        self.osc_server.add_listener(target, prop) # adds current client as listener
+
 
     def _stop_listen(self, target, prop, params: Optional[Tuple[Any]] = ()) -> None:
         if prop in self.listener_functions:
-            listener_function = self.listener_functions[prop]
-            remove_listener_function_name = "remove_%s_listener" % prop
-            remove_listener_function = getattr(target, remove_listener_function_name)
-            remove_listener_function(listener_function)
-            del self.listener_functions[prop]
+            self.osc_server.remove_listener(target, prop) # removes current client as listener
+            if not self.osc_server.hasListeners(target, prop):
+                listener_function = self.listener_functions[prop]
+                remove_listener_function_name = "remove_%s_listener" % prop
+                remove_listener_function = getattr(target, remove_listener_function_name)
+                remove_listener_function(listener_function)
+                del self.listener_functions[prop]
         else:
             self.logger.warning("No listener function found for property: %s" % prop)

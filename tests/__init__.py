@@ -1,9 +1,9 @@
 import time
 import pytest
 import threading
-from pythonosc.udp_client import SimpleUDPClient
-from pythonosc.dispatcher import Dispatcher
-from pythonosc.osc_server import ThreadingOSCUDPServer
+from ..pythonosc.udp_client import SimpleUDPClient
+from ..pythonosc.dispatcher import Dispatcher
+from ..pythonosc.osc_server import ThreadingOSCUDPServer
 
 CLIENT_PORT = 11000
 SERVER_PORT = 11001

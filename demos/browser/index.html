@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head lang='en'>
+	<meta charset='utf-8'>
+	<meta name='viewport' content='width=device-width'>
+	<title>OSC WebSocket Demo</title>
+</head>
+<body>
+	<script type="text/javascript" src="lib/osc.js"></script>
+	<script type="text/javascript" src="osc-websocket-demo.js"></script>
+        
+    <div style="margin:5px;padding:5px;width:50em;">
+        <label>OSC message:</label>
+        <input type="text" size="50" onkeydown="send(this)">
+    </div>
+    <div id="outbox"
+        style="white-space:pre-line;width:30em;height:300px;line-height:1.5em;border:1px solid black;overflow:auto;margin:5px;padding:5px;">
+    </div>
+</body>
+</html>

@@ -5,28 +5,23 @@ from . import abletonosc
 import importlib
 import traceback
 import logging
-import os
-
-# TODO: This might need fixing to work on Windows
-logger = logging.getLogger("abletonosc")
-tmp_dir = "/tmp"
-log_path = os.path.join(tmp_dir, "abletonosc.log")
-file_handler = logging.FileHandler(log_path)
-file_handler.setLevel(logging.INFO)
-formatter = logging.Formatter('(%(asctime)s) [%(levelname)s] %(message)s')
-file_handler.setFormatter(formatter)
-logger.addHandler(file_handler)
 
 class Manager(ControlSurface):
-    def __init__(self, c_instance):
+
+    logger = logging.getLogger("abletonosc")
+
+    def __init__(self, c_instance, servers):
         ControlSurface.__init__(self, c_instance)
-        self.handlers = []
-        self.show_message("AbletonOSC: Listening for OSC on port %d" % abletonosc.OSC_LISTEN_PORT)
+        with self.component_guard():
+            self.handlers = []
+            self.logger.info('Server starting up')
 
-        self.osc_server = abletonosc.OSCServer()
-        self.schedule_message(0, self.tick)
-
-        self.init_api()
+            self.osc_server = abletonosc.OSCServer()
+            for server in servers:
+                    server.open()
+                    server.setProcessor(self.osc_server)
+            self.servers = servers
+            self.init_api()
 
     def init_api(self):
         def test_callback(params):
@@ -34,7 +29,7 @@ class Manager(ControlSurface):
             self.osc_server.send("/live/test", ("ok",))
         def reload_callback(params):
             self.reload_imports()
-
+        
         self.osc_server.add_handler("/live/test", test_callback)
         self.osc_server.add_handler("/live/reload", reload_callback)
 
@@ -53,16 +48,10 @@ class Manager(ControlSurface):
         for handler in self.handlers:
             handler.clear_api()
 
-    def tick(self):
-        """
-        Called once per 100ms "tick".
-        Live's embedded Python implementation does not appear to support threading,
-        and beachballs when a thread is started. Instead, this approach allows long-running
-        processes such as the OSC server to perform operations.
-        """
-        logger.debug("Tick...")
-        self.osc_server.process()
-        self.schedule_message(1, self.tick)
+    def update_display(self):
+        for server in self.servers:
+            server.update()
+        super().update_display()
 
     def reload_imports(self):
         try:
@@ -71,7 +60,7 @@ class Manager(ControlSurface):
             importlib.reload(abletonosc.clip_slot)
             importlib.reload(abletonosc.device)
             importlib.reload(abletonosc.handler)
-            importlib.reload(abletonosc.osc_server)
+            #importlib.reload(abletonosc.osc_server)
             importlib.reload(abletonosc.song)
             importlib.reload(abletonosc.track)
             importlib.reload(abletonosc)
@@ -82,10 +71,10 @@ class Manager(ControlSurface):
         if self.handlers:
             self.clear_api()
             self.init_api()
-        logger.info("Reloaded code")
+        self.logger.info("Reloaded code")
 
     def disconnect(self):
-        self.show_message("Disconnecting...")
-        logger.info("Disconneting...")
-        self.osc_server.shutdown()
+        self.logger.info('Server shutting down')
+        for server in self.servers:
+            server.close()
         super().disconnect()

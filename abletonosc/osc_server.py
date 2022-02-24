@@ -1,43 +1,37 @@
 from typing import Tuple, Any, Callable
-from .constants import OSC_LISTEN_PORT, OSC_RESPONSE_PORT
 from ..pythonosc.osc_message import OscMessage, ParseError
 from ..pythonosc.osc_message_builder import OscMessageBuilder, BuildError
 
-import errno
-import socket
 import logging
 import traceback
 
 class OSCServer:
-    def __init__(self, local_addr=('127.0.0.1', OSC_LISTEN_PORT), remote_addr=('127.0.0.1', OSC_RESPONSE_PORT)):
-        """
-        Class that handles OSC server and client responsibilitiess
 
-        Implemented because pythonosc's OSC server causes a beachball when handling
-        incoming messages. To investigate, as it would be ultimately better not to have
-        to roll our own.
-        """
-        self._local_addr = local_addr
-        self._remote_addr = remote_addr
+    # address of current client whose message is being processed
+    _client_addr = None
 
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self._socket.setblocking(0)
-        self._socket.bind(self._local_addr)
+    # reference to server for current client
+    _server = None
+
+    # for 'subscriptions" like the {start/stop}_listen addresses
+    _listeners = {}
+
+    def __init__(self):
         self._callbacks = {}
-
         self.logger = logging.getLogger("abletonosc")
-        self.logger.info("Starting OSC server (local %s, remote %s)",
-                         str(self._local_addr), str(self._remote_addr))
 
     def add_handler(self, address: str, handler: Callable):
         self._callbacks[address] = handler
 
     def clear_handlers(self):
         self._callbacks = {}
+        self._client_addr = None
+        self._server = None
+        self._listeners = {}
 
-    def send(self, address: str, params: Tuple[Any] = ()) -> None:
+    def toOscMessage(self, address: str, params: Tuple[Any] = ()):
         """
-        Send an OSC message.
+        Builds and returns an OSC message.
 
         Args:
             address: The OSC address (e.g. /frequency)
@@ -47,44 +41,66 @@ class OSCServer:
         for param in params:
             msg_builder.add_arg(param)
 
+        msg = None
         try:
             msg = msg_builder.build()
-            self._socket.sendto(msg.dgram, self._remote_addr)
+            msg = msg.dgram
         except BuildError:
             self.logger.info("AbletonOSC: OSC build error: %s" % (traceback.format_exc()))
 
-    def process(self) -> None:
-        """
-        Synchronously process all data queued on the OSC socket.
-        """
+        return msg
+
+    def process(self, data, client_addr, server):
+        self._client_addr = client_addr
+        self._server = server
+        rv = None
         try:
-            while True:
-                data, addr = self._socket.recvfrom(65536)
-                try:
-                    message = OscMessage(data)
+            message = OscMessage(data)
 
-                    if message.address in self._callbacks:
-                        callback = self._callbacks[message.address]
-                        rv = callback(message.params)
-
-                        if rv is not None:
-                            self.send(message.address, rv)
-                    else:
-                        self.logger.info("AbletonOSC: Unknown OSC address: %s" % message.address)
-                except ParseError:
-                    self.logger.info("AbletonOSC: OSC parse error: %s" % (traceback.format_exc()))
-
-        except socket.error as e:
-            if e.errno == errno.EAGAIN or e.errno == errno.EWOULDBLOCK:
-                return
+            if message.address in self._callbacks:
+                callback = self._callbacks[message.address]
+                rv = callback(message.params)
             else:
-                self.logger.info("AbletonOSC: Socket error: %s" % (traceback.format_exc()))
+                self.logger.info("AbletonOSC: Unknown OSC address: %s" % message.address)
+
+        except ParseError:
+            self.logger.info("AbletonOSC: OSC parse error: %s" % (traceback.format_exc()))
 
         except Exception as e:
             self.logger.info("AbletonOSC: Error handling message: %s" % (traceback.format_exc()))
 
-    def shutdown(self) -> None:
-        """
-        Shutdown the server network sockets.
-        """
-        self._socket.close()
+        if rv != None:
+            if (type(rv) is not tuple) and (type(rv) is not list):
+                rv = (rv,)
+            rv = self.toOscMessage(message.address, rv)
+
+        return rv
+
+    #
+    ##  These next few are all to support pub sub (start/stop _listener addresses)
+    #
+
+    def add_listener(self, target, prop):
+        key = (target, prop)
+        if not key in self._listeners:
+            self._listeners[key] = []
+        self._listeners[key].append((self._server, self._client_addr))
+        self.logger.info(self._listeners[key] )
+
+    def hasListeners(self, target, prop):
+        key = (target, prop)
+        return key in self._listeners
+
+    def remove_listener(self, target, prop):
+        key = (target, prop)
+        self._listeners[key].remove((self._server, self._client_addr))
+        self.logger.info(self._listeners[key])
+        if len(self._listeners[key]) == 0:
+            self._listeners.pop(key)
+
+    def publish(self, target, prop, address, args):
+        key = (target, prop)
+        value = self.toOscMessage(address, args)
+        for (server, client_addr) in self._listeners[key]:
+            server.send(value, client_addr)
+
