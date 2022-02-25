@@ -1,12 +1,16 @@
 import logging
+from .. import constants
 
 class Server:
 
+    logger = None
+
     def __init__(self, tag):
         self.tag = tag
-        self.logger = logging.getLogger("Server-" + tag)
-        self.logger.info('init')
 
+    def setLogger(self, logger):
+        self.logger = logger
+    
     def setProcessor(self, processor):
         self.processor = processor
 
@@ -21,5 +25,4 @@ class Server:
 
     def close(self):
         pass
-
     

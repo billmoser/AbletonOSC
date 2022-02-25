@@ -1,7 +1,7 @@
-from ..lib.SimpleWebSocketServer import WebSocket, SimpleWebSocketServer
+from ..lib.simple_websocket_server.SimpleWebSocketServer import WebSocket, SimpleWebSocketServer
 from .server import Server
 
-TAG = 'ws'
+TAG = 'WS'
 inQueue = []
 
 class QueueingHandler(WebSocket):
@@ -25,7 +25,6 @@ class WsServer(Server):
 
         while len(inQueue) > 0:
             item = inQueue.pop(0)
-            self.logger.info(item)
             sock = item[0]
             data = item[1]
             result = self.processor.process(data, sock, self)
@@ -33,7 +32,11 @@ class WsServer(Server):
                 self.send(result, sock)
 
     def send(self, message, destination):
-        destination.sendMessage(message)
+        self.logger.info(self.tag + " sending: " + str(message) + ', ' + str(destination))
+        try:
+            destination.sendMessage(message)
+        except Exception as e:
+            raise e
 
     def open(self):
         try:
@@ -42,7 +45,7 @@ class WsServer(Server):
         except Exception as e:
             self.logger.info(e)
         else:
-            self.logger.info('Connected: %s:%d' % self._addr)
+            self.logger.info(self.tag + ' Connected: %s:%d' % self._addr)
 
     def close(self):
         self.server.close()

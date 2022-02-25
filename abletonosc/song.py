@@ -3,6 +3,7 @@ from typing import Tuple, Any
 from .handler import AbletonOSCHandler
 
 class SongHandler(AbletonOSCHandler):
+
     def init_api(self):
         #--------------------------------------------------------------------------------
         # Init callbacks for Set: methods
@@ -62,9 +63,23 @@ class SongHandler(AbletonOSCHandler):
         self.last_song_time = -1.0
 
         def song_time_changed():
+            key = "beat"
             # If song has rewound or skipped to next beat, sent a /live/beat message
             if (self.song.current_song_time < self.last_song_time) or \
                     (int(self.song.current_song_time) > int(self.last_song_time)):
-                self.osc_server.send("/live/song/beat", (int(self.song.current_song_time),))
+                value = int(self.song.current_song_time)
+                self.osc_server.publish(key, "/live/song/beat", (value,))
             self.last_song_time = self.song.current_song_time
+
         self.song.add_current_song_time_listener(song_time_changed)
+
+        def _start_listen_beat(params) -> None: 
+            key = "beat"
+            self.osc_server.add_listener(key) # adds current client as listener
+
+        def _stop_listen_beat(params) -> None:
+            key = "beat"
+            self.osc_server.remove_listener(key) # removes current client as listener
+
+        self.osc_server.add_handler("/live/song/start_listen/beat", _start_listen_beat)
+        self.osc_server.add_handler("/live/song/stop_listen/beat", _stop_listen_beat)

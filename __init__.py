@@ -1,5 +1,4 @@
-'''try:
-    from .config import server_list
+try:
     from .manager import Manager
 except ImportError as e:
     # This is needed for unit tests to work through pytest.
@@ -7,8 +6,15 @@ except ImportError as e:
     exception_str = str(e)
     if "bad magic number" in exception_str:
         pass
+    if "No module named \'past\'" in exception_str:
+        pass
     else:
         raise e
-def create_instance(c_instance):
-    return Manager(c_instance, server_list)
-'''
+else:
+    from . import constants
+    from . import servers
+    def create_instance(c_instance):
+        return Manager(c_instance, [
+            servers.UdpServer(constants.UDP_ADDRESS),
+            servers.WsServer(constants.WS_ADDRESS)
+        ])

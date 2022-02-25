@@ -1,6 +1,6 @@
 from typing import Tuple, Any, Callable
-from ..pythonosc.osc_message import OscMessage, ParseError
-from ..pythonosc.osc_message_builder import OscMessageBuilder, BuildError
+from ..lib.pythonosc.osc_message import OscMessage, ParseError
+from ..lib.pythonosc.osc_message_builder import OscMessageBuilder, BuildError
 
 import logging
 import traceback
@@ -80,27 +80,34 @@ class OSCServer:
     ##  These next few are all to support pub sub (start/stop _listener addresses)
     #
 
-    def add_listener(self, target, prop):
-        key = (target, prop)
+    def add_listener(self, key):
         if not key in self._listeners:
             self._listeners[key] = []
         self._listeners[key].append((self._server, self._client_addr))
         self.logger.info(self._listeners[key] )
 
-    def hasListeners(self, target, prop):
-        key = (target, prop)
+    def hasListeners(self, key):
         return key in self._listeners
 
-    def remove_listener(self, target, prop):
-        key = (target, prop)
+    def remove_listener(self, key, server = None, client_addr = None):
+        if server == None:
+            server = self._server
+        if client_addr == None:
+            client_addr = self._client_addr
         self._listeners[key].remove((self._server, self._client_addr))
         self.logger.info(self._listeners[key])
         if len(self._listeners[key]) == 0:
             self._listeners.pop(key)
 
-    def publish(self, target, prop, address, args):
-        key = (target, prop)
-        value = self.toOscMessage(address, args)
-        for (server, client_addr) in self._listeners[key]:
-            server.send(value, client_addr)
+    def publish(self, key, address, args):
+        removeList = []
+        if key in self._listeners:
+            value = self.toOscMessage(address, args)
+            for (server, client_addr) in self._listeners[key]:
+                if server.has_client(client_addr):
+                    server.send(value, client_addr)
+                else:
+                    removeList.append((server, client_addr))
+            for (server, client_addr) in removeList:
+                self.remove_listener(key, server, client_addr)
 

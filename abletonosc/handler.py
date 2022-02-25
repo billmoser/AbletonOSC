@@ -35,26 +35,30 @@ class AbletonOSCHandler(Component):
         return getattr(target, prop),
 
     def _start_listen(self, target, prop, params: Optional[Tuple[Any]] = ()) -> None:
-        if not self.osc_server.hasListeners(target, prop):
+        key = (target, prop)
+
+        if not self.osc_server.hasListeners(key):
             def property_changed_callback():
                 value = getattr(target, prop)
                 self.logger.info("Property %s changed: %s" % (prop, value))
                 # TODO
                 osc_address = "/live/set/get/%s" % prop
-                self.osc_server.publish(target, prop, osc_address, (value,))
+                self.osc_server.publish(key, osc_address, (value,))
 
             add_listener_function_name = "add_%s_listener" % prop
             add_listener_function = getattr(target, add_listener_function_name)
             add_listener_function(property_changed_callback)
             self.listener_functions[prop] = property_changed_callback
 
-        self.osc_server.add_listener(target, prop) # adds current client as listener
+        self.osc_server.add_listener(key) # adds current client as listener
 
 
     def _stop_listen(self, target, prop, params: Optional[Tuple[Any]] = ()) -> None:
+        key = (target, prop)
+
         if prop in self.listener_functions:
-            self.osc_server.remove_listener(target, prop) # removes current client as listener
-            if not self.osc_server.hasListeners(target, prop):
+            self.osc_server.remove_listener(key) # removes current client as listener
+            if not self.osc_server.hasListeners(key):
                 listener_function = self.listener_functions[prop]
                 remove_listener_function_name = "remove_%s_listener" % prop
                 remove_listener_function = getattr(target, remove_listener_function_name)

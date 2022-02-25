@@ -5,21 +5,33 @@ from . import abletonosc
 import importlib
 import traceback
 import logging
+from . import constants
+
+logger = logging.getLogger(constants.LOGGER_NAME)
+logger.setLevel(constants.LOG_LEVEL)
+
+if constants.LOG_FILE is not None:
+    file_handler = logging.FileHandler(constants.LOG_FILE)
+#    file_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('(%(asctime)s) [%(levelname)s] %(message)s')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
 
 class Manager(ControlSurface):
-
-    logger = logging.getLogger("abletonosc")
 
     def __init__(self, c_instance, servers):
         ControlSurface.__init__(self, c_instance)
         with self.component_guard():
             self.handlers = []
+            self.logger = logger
             self.logger.info('Server starting up')
 
             self.osc_server = abletonosc.OSCServer()
             for server in servers:
-                    server.open()
-                    server.setProcessor(self.osc_server)
+                server.setLogger(self.logger)
+                server.setProcessor(self.osc_server)
+                server.open()
+
             self.servers = servers
             self.init_api()
 
