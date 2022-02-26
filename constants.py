@@ -6,7 +6,7 @@ LOGGER_NAME = "abletonosc"
 #LOG_FILE = None
 LOG_FILE = "/tmp/" + LOGGER_NAME + ".log"
 
-LOG_LEVEL = logging.INFO
+LOG_LEVEL = logging.WARNING
 
 LOG_FORMAT = '(%(asctime)s) [%(levelname)s] %(message)s'
 

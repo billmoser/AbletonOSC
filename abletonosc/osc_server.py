@@ -94,7 +94,7 @@ class OSCServer:
             server = self._server
         if client_addr == None:
             client_addr = self._client_addr
-        self._listeners[key].remove((self._server, self._client_addr))
+        self._listeners[key].remove((server, client_addr))
         self.logger.info(self._listeners[key])
         if len(self._listeners[key]) == 0:
             self._listeners.pop(key)
