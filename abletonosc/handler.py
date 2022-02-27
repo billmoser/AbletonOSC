@@ -1,7 +1,7 @@
 from ableton.v2.control_surface.component import Component
 from typing import Optional, Tuple, Any
 import logging
-from .osc_server import OSCServer
+from .osc_server import OSCServer, toOscMessage
 
 class AbletonOSCHandler(Component):
     def __init__(self, manager):
@@ -10,6 +10,7 @@ class AbletonOSCHandler(Component):
         self.logger = logging.getLogger("abletonosc")
         self.manager = manager
         self.osc_server: OSCServer = self.manager.osc_server
+        self.publisher: OSCServer = self.manager.publisher
         self.init_api()
         self.listener_functions = {}
 
@@ -37,28 +38,29 @@ class AbletonOSCHandler(Component):
     def _start_listen(self, target, prop, params: Optional[Tuple[Any]] = ()) -> None:
         key = (target, prop)
 
-        if not self.osc_server.hasListeners(key):
+        if not self.publisher.hasListeners(key):
             def property_changed_callback():
                 value = getattr(target, prop)
                 self.logger.info("Property %s changed: %s" % (prop, value))
                 # TODO
                 osc_address = "/live/set/get/%s" % prop
-                self.osc_server.publish(key, osc_address, (value,))
+                msg = toOscMessage(osc_address, (value,))
+                self.publisher.publish(key, msg)
 
             add_listener_function_name = "add_%s_listener" % prop
             add_listener_function = getattr(target, add_listener_function_name)
             add_listener_function(property_changed_callback)
             self.listener_functions[prop] = property_changed_callback
 
-        self.osc_server.add_listener(key) # adds current client as listener
+        self.publisher.add_listener(key) # adds current client as listener
 
 
     def _stop_listen(self, target, prop, params: Optional[Tuple[Any]] = ()) -> None:
         key = (target, prop)
 
         if prop in self.listener_functions:
-            self.osc_server.remove_listener(key) # removes current client as listener
-            if not self.osc_server.hasListeners(key):
+            self.publisher.remove_listener(key) # removes current client as listener
+            if not self.publisher.hasListeners(key):
                 listener_function = self.listener_functions[prop]
                 remove_listener_function_name = "remove_%s_listener" % prop
                 remove_listener_function = getattr(target, remove_listener_function_name)

@@ -1,6 +1,7 @@
 from functools import partial
 from typing import Tuple, Any
 from .handler import AbletonOSCHandler
+from .osc_server import toOscMessage
 
 class SongHandler(AbletonOSCHandler):
 
@@ -68,18 +69,19 @@ class SongHandler(AbletonOSCHandler):
             if (self.song.current_song_time < self.last_song_time) or \
                     (int(self.song.current_song_time) > int(self.last_song_time)):
                 value = int(self.song.current_song_time)
-                self.osc_server.publish(key, "/live/song/beat", (value,))
+                msg = toOscMessage("/live/song/beat", (value,))
+                self.publisher.publish(key, msg)
             self.last_song_time = self.song.current_song_time
 
         self.song.add_current_song_time_listener(song_time_changed)
 
         def _start_listen_beat(params) -> None: 
             key = "beat"
-            self.osc_server.add_listener(key) # adds current client as listener
+            self.publisher.add_listener(key) # adds current client as listener
 
         def _stop_listen_beat(params) -> None:
             key = "beat"
-            self.osc_server.remove_listener(key) # removes current client as listener
+            self.publisher.remove_listener(key) # removes current client as listener
 
         self.osc_server.add_handler("/live/song/start_listen/beat", _start_listen_beat)
         self.osc_server.add_handler("/live/song/stop_listen/beat", _stop_listen_beat)

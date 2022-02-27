@@ -15,6 +15,6 @@ else:
     from . import servers
     def create_instance(c_instance):
         return Manager(c_instance, [
-            servers.UdpServer(constants.UDP_ADDRESS),
+            servers.UdpServer(constants.UDP_ADDRESS, constants.UDP_CLIENT_ADDRESS),
             servers.WsServer(constants.WS_ADDRESS)
         ])

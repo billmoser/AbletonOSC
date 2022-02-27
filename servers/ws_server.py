@@ -6,13 +6,13 @@ inQueue = []
 
 class QueueingHandler(WebSocket):
     def handleMessage(self):
-        inQueue.append((self, self.data))
+        inQueue.append(('data', self, self.data))
 
     def handleConnected(self):
-        pass
+        inQueue.append(('connected', self))
 
     def handleClose(self):
-        pass
+        inQueue.append(('closed', self))
 
 class WsServer(Server):
 
@@ -25,11 +25,18 @@ class WsServer(Server):
 
         while len(inQueue) > 0:
             item = inQueue.pop(0)
-            sock = item[0]
-            data = item[1]
-            result = self.processor.process(data, sock, self)
-            if result != None:
-                self.send(result, sock)
+            if (item[0] == 'data'):
+                sock = item[1]
+                data = item[2]
+                self.logger.info('processing ' + self.tag + " - " + str(sock) + ', ' + str(data))
+                self.publisher.setCurrentMessageEndpoints(self, sock)
+                result = self.processor.process(data)
+                if result != None:
+                    self.send(result, sock)
+            else:
+                q = item[1]
+                self.logger.info(self.tag + " - " + item[0] + ':: ' +
+                    str(q.server) + ', ' + str(q.client) + ', ' + str(q.address))
 
     def send(self, message, destination):
         self.logger.info(self.tag + " sending: " + str(message) + ', ' + str(destination))
@@ -39,6 +46,7 @@ class WsServer(Server):
             raise e
 
     def open(self):
+        #bloop = self.logger
         try:
             host, port = self._addr
             self.server = SimpleWebSocketServer(host.encode('utf-8'), port, QueueingHandler)
